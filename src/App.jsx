@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useEffect, useState } from 'react';
 
 import { SearchBar } from './components/SearchBar/SearchBar.jsx';
 import { ImageGallery } from './components/ImageGallery/ImageGallery.jsx';
@@ -10,26 +10,24 @@ import { fetchImages } from './service/pixabayAPI.js';
 
 import './App.css';
 
-export class App extends Component {
-  state = {
-    query: '',
-    page: 1,
-    images: [],
-    loading: false,
-    error: false,
-    modalIsOpen: false,
-    dataForModal: null,
-    showLoadMoreBtn: false,
-  };
+export const App = () => {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [dataForModal, setDataForModal] = useState(null);
+  const [showLoadMoreBtn, setShowLoadMoreBtn] = useState(false);
 
-  async componentDidUpdate(_, prevState) {
-    const { query, page } = this.state;
-
-    if (query !== prevState.query || page !== prevState.page) {
+  useEffect(() => {
+    const fn = async () => {
       if (!query) return;
 
       try {
-        this.setState({ loading: true, error: false });
+        setLoading(true);
+        setError(false);
+
         const data = await fetchImages({ query, page });
         if (!data?.hits?.length) return;
         const normalizedArray = array =>
@@ -39,66 +37,61 @@ export class App extends Component {
             largeImageURL,
             tags,
           }));
-        this.setState(prev => ({
-          images: [...prev.images, ...normalizedArray(data.hits)],
-          showLoadMoreBtn: page < Math.ceil(data.totalHits / 12),
-        }));
+        setImages(prevImages => [...prevImages, ...normalizedArray(data.hits)]);
+        setShowLoadMoreBtn(page < Math.ceil(data.totalHits / 12));
       } catch (error) {
-        this.setState({ error: true });
+        setError(true);
       } finally {
-        this.setState({ loading: false });
+        setLoading(false);
       }
-    }
-  }
+    };
+    fn();
+  }, [query, page]);
 
-  handleSubmit = query => {
-    this.setState({ query, page: 1, images: [], showLoadMoreBtn: false });
+  const handleSubmit = query => {
+    setQuery(query);
+    setPage(1);
+    setImages([]);
+    setShowLoadMoreBtn(false);
   };
 
-  handleLoadMore = () => {
-    this.setState(({ page }) => ({ page: page + 1 }));
+  const handleLoadMore = () => {
+    setPage(page + 1);
   };
 
-  openModal = dataForModal => {
-    this.setState({ dataForModal, modalIsOpen: true });
+  const openModal = dataForModal => {
+    setDataForModal(dataForModal);
+    setModalIsOpen(true);
+
     document.body.style.overflow = 'hidden';
   };
 
-  closeModal = () => {
-    this.setState({ dataForModal: '', modalIsOpen: false });
+  const closeModal = () => {
+    setDataForModal('');
+    setModalIsOpen(false);
+
     document.body.style.overflow = 'auto';
   };
 
-  render() {
-    const { handleSubmit, openModal, handleLoadMore, closeModal } = this;
-    const {
-      error,
-      images,
-      modalIsOpen,
-      dataForModal,
-      loading,
-      showLoadMoreBtn,
-    } = this.state;
-    return (
-      <>
-        <SearchBar onSubmit={handleSubmit} />
-        {images.length > 0 && !error && (
-          <ImageGallery images={images} onImageClick={openModal} />
-        )}
+  return (
+    <>
+      <SearchBar onSubmit={handleSubmit} />
+      {images.length > 0 && !error && (
+        <ImageGallery images={images} onImageClick={openModal} />
+      )}
 
-        {error && (
-          <ErrorMessage message="Oops, there was an error, please try reloading" />
-        )}
-        {showLoadMoreBtn && <LoadMoreBtn onClick={handleLoadMore} />}
-        {modalIsOpen && (
-          <ImageModal
-            isOpen={modalIsOpen}
-            onRequestClose={closeModal}
-            dataForModal={dataForModal}
-          />
-        )}
-        {loading && <Loader />}
-      </>
-    );
-  }
-}
+      {error && (
+        <ErrorMessage message="Oops, there was an error, please try reloading" />
+      )}
+      {showLoadMoreBtn && <LoadMoreBtn onClick={handleLoadMore} />}
+      {modalIsOpen && (
+        <ImageModal
+          isOpen={modalIsOpen}
+          onRequestClose={closeModal}
+          dataForModal={dataForModal}
+        />
+      )}
+      {loading && <Loader />}
+    </>
+  );
+};
